@@ -1,208 +1,103 @@
 # WatchFlow
 
-A lightweight Linux file monitoring and automation engine built with modern **C++20**.
+WatchFlow is a lightweight Linux file watcher and automation engine written in
+C++20. It watches one directory with `inotify`, turns filesystem changes into
+events, matches those events against configurable rules, and runs actions such
+as moving downloads, copying files, compressing large files, running commands,
+or sending desktop notifications.
 
-WatchFlow watches a directory for filesystem events via Linux `inotify`, evaluates each event against a set of configurable rules, and automatically triggers an action when a rule matches — copy a file, run a shell command, compress it, or fire a desktop notification.
-
-The project doubles as a practical exercise in modern C++, Linux systems programming, OOP, SOLID principles, and event-driven design.
-
+```text
+Linux filesystem -> inotify -> FileEvent -> RuleEngine -> Matcher -> Action
 ```
-Linux Filesystem → inotify → FileWatcher → FileEvent → RuleEngine → Matcher → Action
-```
-
----
-
-## Table of Contents
-
-- [Problem Statement](#problem-statement)
-- [Overview](#overview)
-- [Features](#features)
-- [Technology Stack](#technology-stack)
-- [Requirements](#requirements)
-- [Installation](#installation)
-- [Running WatchFlow](#running-watchflow)
-- [Quick Start](#quick-start)
-- [Configuration](#configuration)
-- [Architecture](#architecture)
-- [Project Structure](#project-structure)
-- [Design Principles](#design-principles)
-- [Security Considerations](#security-considerations)
-- [Learning Goals](#learning-goals)
-- [License](#license)
-
----
-
-## Problem Statement
-
-Teams and individuals often download, create, or receive files into a shared folder and then spend time manually sorting them, copying them into destination folders, launching follow-up commands, compressing archives, or sending notifications. WatchFlow automates that response loop: it watches a folder, matches files against rules, and immediately applies the right action.
-
----
-
-## Overview
-
-WatchFlow continuously monitors a directory and reacts to filesystem events. The core pipeline:
-
-```
-New file:  report.pdf
-     ↓
-Regex Matcher: .*\.pdf
-     ↓
-MATCH
-     ↓
-CopyAction
-     ↓
-output/pdfs/report.pdf
-```
-
----
 
 ## Features
 
-### 🔎 Filesystem Monitoring
-Watches a directory for **creation**, **modification**, **deletion**, and **move** events using Linux's `inotify` — no polling.
-
-### 📥 Automatic File Storage
-When a new file appears in the watched directory, WatchFlow can automatically store it in a target folder through a `COPY` rule. This is the feature behind the "download it and it gets stored automatically" behavior: the file lands in the watch folder, WatchFlow detects it, and the configured action moves or copies it to the destination folder without manual handling.
-
-### 🧩 Regex Matcher
-Match files by pattern:
-
-```
-.*\.pdf
-```
-✅ `report.pdf`, `resume.pdf`   ❌ `image.png`, `main.cpp`
-
-### 📦 File Size Matcher
-Match files by size with `SIZE_GT`, `SIZE_LT`, or `SIZE_EQ`:
-
-```
-SIZE_GT|1048576    # file size > 1 MB
-```
-
-### ⚡ Actions
-
-| Action | Description | Example |
-|---|---|---|
-| **COPY** | Copies the file using `std::filesystem` | `COPY\|./output/pdfs` |
-| **EXECUTE** | Runs a shell command with `{file}` substitution | `EXECUTE\|g++ "{file}" -std=c++20 -o "{file}.out"` |
-| **COMPRESS** | Compresses the file with `gzip` | `COMPRESS\|.gz` |
-| **NOTIFY** | Sends a Linux desktop notification | `NOTIFY\|New PDF detected: {file}` |
-
-> ⚠️ `EXECUTE` can run arbitrary shell commands — only use trusted configuration files.
-
----
-
-## Technology Stack
-
-| Technology | Purpose |
-|---|---|
-| C++20 | Core implementation |
-| Linux | Operating system |
-| inotify | Filesystem event monitoring |
-| `<filesystem>` | File operations |
-| `<regex>` | Regex matching |
-| CMake | Build system |
-| gzip | File compression |
-| notify-send | Desktop notifications |
-
----
+- Linux `inotify` monitoring for created, modified, deleted, and moved-in files.
+- Rule-based automation with one or more rules per config file.
+- YAML-style configuration for readable download sorting rules.
+- Legacy pipe-delimited `.conf` configuration support.
+- Matchers for file extensions, regular expressions, and file size.
+- Actions for move, copy, execute, gzip compression, and desktop notification.
+- Duplicate handling for move/copy actions: overwrite, rename, or skip.
+- Optional wait-until-complete behavior before moving or copying files.
+- Console logging for events and rule results.
+- Optional file logging with automatic log directory creation.
+- Graceful shutdown on `Ctrl+C` or `SIGTERM`.
 
 ## Requirements
 
 - Linux
 - GCC or Clang with C++20 support
-- CMake 3.20+
-- `gzip`
-- `libnotify` / `notify-send`
+- CMake 3.20 or newer
+- `gzip` for the `compress` action
+- `notify-send` from `libnotify-bin` for the `notify` action
 
-**Ubuntu / Kubuntu / Debian:**
+On Debian, Ubuntu, or Kubuntu:
 
 ```bash
 sudo apt update
 sudo apt install build-essential cmake gzip libnotify-bin
 ```
 
-Verify:
+## Build
 
 ```bash
-g++ --version
-cmake --version
-gzip --version
-notify-send --version
-```
-
----
-
-## Installation
-
-```bash
-git clone https://github.com/<your-username>/WatchFlow.git
-cd WatchFlow
-
 cmake -S . -B build
 cmake --build build
 ```
 
-The executable is generated at `build/watchflow`.
+The executable is created at:
 
----
+```bash
+./build/watchflow
+```
 
-## Running WatchFlow
+## Run
 
 ```bash
 ./build/watchflow <config-file>
 ```
 
-Example:
+Examples:
 
 ```bash
 ./build/watchflow examples/watchflow.conf
+./build/watchflow downloads-sort.yml
 ```
 
-```
-====================================
-          WatchFlow
-====================================
-
-Watching: ./sandbox
-Rules: 4
-
-WatchFlow started.
-Press Ctrl+C to stop.
-```
-
-Stop with `Ctrl+C`.
-
----
+Stop WatchFlow with `Ctrl+C`.
 
 ## Quick Start
 
-```bash
-mkdir -p sandbox
-mkdir -p output/pdfs
+Create the local demo folders:
 
+```bash
+mkdir -p sandbox output/pdfs
+```
+
+Start WatchFlow:
+
+```bash
 ./build/watchflow examples/watchflow.conf
 ```
 
-In another terminal:
+In another terminal, create a PDF:
 
 ```bash
 touch sandbox/report.pdf
 ```
 
-WatchFlow detects the event, matches it against `.*\.pdf`, and copies it:
+The demo rule copies it to:
 
-```bash
-ls output/pdfs
-# report.pdf
+```text
+output/pdfs/report.pdf
 ```
 
----
+## YAML Configuration
 
-## Configuration
-
-WatchFlow supports YAML configuration for readable automation rules. The older
-pipe-delimited `.conf` format is still supported for existing examples.
+YAML files use the `.yml` or `.yaml` extension. WatchFlow supports a small,
+purpose-built YAML subset: top-level key/value fields, `wait_until_complete`,
+and a list of simple rule objects.
 
 ```yaml
 watch: /home/naman/Downloads
@@ -230,221 +125,206 @@ rules:
     destination: /home/naman/Documents/PDF
 ```
 
-Run a YAML config the same way:
+### Top-Level Fields
+
+| Field | Required | Description |
+| --- | --- | --- |
+| `watch` | Yes | Directory to monitor. |
+| `log_file` | No | File that receives event and rule-result logs. Parent directories are created automatically. |
+| `duplicates` | No | Move/copy behavior when the destination file exists: `overwrite`, `rename`, or `skip`. Default: `overwrite`. |
+
+### Wait Until Complete
+
+`wait_until_complete` applies to native `move` and `copy` actions. When enabled,
+WatchFlow waits until the source file size remains stable before acting. This is
+useful for browser downloads and large copied files.
+
+| Field | Description |
+| --- | --- |
+| `enabled` | `true` or `false`. Default: `false`. |
+| `stable_for_ms` | How long the file size must stay unchanged. Default: `1000`. |
+| `timeout_ms` | Maximum time to wait before the action fails. Default: `60000`. |
+
+### Rule Fields
+
+| Field | Description |
+| --- | --- |
+| `name` | Human-readable rule name. |
+| `event` | One event: `created`, `modified`, `deleted`, or `moved`. |
+| `events` | List of events. If omitted, defaults to `[created, moved]`. |
+| `matcher` | `extension`, `regex`, `size_gt`, `size_lt`, or `size_eq`. |
+| `extensions` | Extension list for `extension` matcher. Dots are optional and matching is case-insensitive. |
+| `pattern` | Regex pattern for `regex` matcher. |
+| `value` | Generic value used by size matchers or as an action fallback. |
+| `action` | `move`, `copy`, `execute`, `compress`, or `notify`. |
+| `destination` | Destination directory for `move` and `copy`. Also used as the action argument when present. |
+
+For size matchers, use `value` as the byte threshold:
+
+```yaml
+rules:
+  - name: Large files
+    event: modified
+    matcher: size_gt
+    value: 1048576
+    action: compress
+    destination: .gz
+```
+
+## Legacy `.conf` Configuration
+
+Pipe-delimited config files are still supported.
+
+```text
+WATCH|./sandbox
+LOG|./logs/watchflow.log
+DUPLICATES|rename
+WAIT_UNTIL_COMPLETE|true|1500|60000
+
+RULE|Copy PDFs|CREATED|REGEX|.*\.pdf|COPY|./output/pdfs
+RULE|Move PDFs|MOVED|EXT|pdf|MOVE|./output/pdfs
+RULE|Compress large files|MODIFIED|SIZE_GT|1048576|COMPRESS|.gz
+RULE|Compile C++|MODIFIED|REGEX|.*\.cpp|EXECUTE|g++ "{file}" -std=c++20 -o "{file}.out"
+RULE|Notify PDFs|CREATED|REGEX|.*\.pdf|NOTIFY|New PDF: {file}
+```
+
+Supported rule format:
+
+```text
+RULE|<name>|<event>|<matcher>|<matcher-value>|<action>|<action-value>
+```
+
+Supported events:
+
+```text
+CREATED, MODIFIED, DELETED, MOVED
+```
+
+Supported matchers:
+
+| Matcher | Value |
+| --- | --- |
+| `EXT` / `EXTENSION` | Comma-separated extensions, such as `pdf,jpg,png`. |
+| `REGEX` | C++ regex pattern matched against the event path. |
+| `SIZE_GT` | File size is greater than the given byte count. |
+| `SIZE_LT` | File size is less than the given byte count. |
+| `SIZE_EQ` | File size equals the given byte count. |
+
+Supported actions:
+
+| Action | Value |
+| --- | --- |
+| `MOVE` | Destination directory. |
+| `COPY` | Destination directory. |
+| `EXECUTE` | Shell command. `{file}` is replaced with the event path. |
+| `COMPRESS` | Output extension, usually `.gz`. |
+| `NOTIFY` | Desktop notification message. `{file}` is replaced with the event path. |
+
+## Download Sorting
+
+The included `downloads-sort.yml` is the recommended config for sorting common
+download types:
+
+- images to `~/Pictures`
+- PDFs to `~/Documents/PDF`
+- Microsoft Office files to `~/Documents/MSFT`
+- MP3 files to `~/Music`
+- MP4 files to `~/Videos`
+
+Run it with:
 
 ```bash
 ./build/watchflow downloads-sort.yml
 ```
 
-### YAML fields
-
-| Field | Meaning |
-|---|---|
-| `watch` | Directory to monitor |
-| `log_file` | Optional file that receives event and rule-result logs |
-| `duplicates` | `overwrite`, `rename`, or `skip` |
-| `wait_until_complete.enabled` | Wait for file size to stop changing before copy/move |
-| `wait_until_complete.stable_for_ms` | How long the size must remain unchanged |
-| `wait_until_complete.timeout_ms` | Maximum wait time before failing the action |
-| `rules[].events` | One or more events: `created`, `modified`, `deleted`, `moved` |
-| `rules[].matcher` | `extension`, `regex`, `size_gt`, `size_lt`, or `size_eq` |
-| `rules[].action` | `move`, `copy`, `execute`, `compress`, or `notify` |
-
-### Legacy `.conf` format
-
-```
-WATCH|./sandbox
-
-RULE|Copy PDFs|CREATED|REGEX|.*\.pdf|COPY|./output/pdfs
-RULE|Move PDFs|MOVED|EXT|pdf|MOVE|./output/pdfs
-RULE|Compress Large Files|MODIFIED|SIZE_GT|1048576|COMPRESS|.gz
-RULE|Compile C++|MODIFIED|REGEX|.*\.cpp|EXECUTE|g++ "{file}" -std=c++20 -o "{file}.out"
-RULE|Notify PDFs|CREATED|REGEX|.*\.pdf|NOTIFY|New PDF detected: {file}
-```
-
-### `WATCH`
-
-```
-WATCH|<directory>
-```
-
-### `RULE`
-
-```
-RULE|<name>|<event>|<matcher>|<pattern>|<action>|<action-argument>
-```
-
-**Supported events:** `CREATED`, `MODIFIED`, `DELETED`, `MOVED`
-
-**Supported matchers:**
-
-| Matcher | Syntax |
-|---|---|
-| Extension | `EXT\|pdf,jpg,png` |
-| Regex | `REGEX\|<pattern>` |
-| Size greater than | `SIZE_GT\|<bytes>` |
-| Size less than | `SIZE_LT\|<bytes>` |
-| Size equal to | `SIZE_EQ\|<bytes>` |
-
-**Supported actions:**
-
-| Action | Syntax |
-|---|---|
-| Move | `MOVE\|<destination-directory>` |
-| Copy | `COPY\|<destination-directory>` |
-| Execute | `EXECUTE\|<command with {file}>` |
-| Compress | `COMPRESS\|<extension>` |
-| Notify | `NOTIFY\|<message with {file}>` |
-
----
+Adjust the absolute paths before using it on another machine.
 
 ## Architecture
 
-WatchFlow follows a layered, event-driven architecture:
-
-```
-Config → ConfigManager → RuleEngine
-                              ▲
-Linux Kernel → inotify → InotifyFileWatcher → FileEvent
-                              │
-                          RuleEngine
-                              │
-                          IMatcher ──► RegexMatcher / FileSizeMatcher
-                              │
-                            MATCH
-                              │
-                           IAction ──► CopyAction / ExecuteAction / CompressAction / NotificationAction
-```
-
-### Runtime flow — `touch sandbox/report.pdf`
-
-### Runtime outcome — file lands in a destination folder
-
-If the watched folder receives a file such as `report.pdf`, the matching `COPY` rule stores it in the configured destination directory, for example `output/pdfs/report.pdf`.
-
-1. User creates `report.pdf`
-2. Linux filesystem changes
-3. `inotify` generates an event
-4. `InotifyFileWatcher` receives it
-5. WatchFlow builds a `FileEvent`
-6. `RuleEngine` receives the `FileEvent`
-7. `RuleEngine` iterates through rules
-8. The matching `IMatcher` evaluates the event
-9. On match, the configured `IAction` executes
-10. `Logger` reports the result
-
-### Core components
+WatchFlow is split into small components:
 
 | Component | Responsibility |
-|---|---|
-| `FileEvent` | Internal representation of a filesystem event, decoupled from `inotify_event` |
-| `IFileWatcher` / `InotifyFileWatcher` | Abstraction over filesystem monitoring; Linux `inotify` implementation |
-| `IMatcher` / `RegexMatcher` / `FileSizeMatcher` | Strategy interface for evaluating events against rule conditions |
-| `IAction` / `CopyAction` / `ExecuteAction` / `CompressAction` / `NotificationAction` | Independently executable action objects |
-| `Rule` | Binds an event type, a matcher, and an action together |
-| `RuleEngine` | Central coordinator: receives events, checks rules, dispatches actions |
-| `ConfigManager` | Parses the config file and builds the rule model |
-
----
+| --- | --- |
+| `FileEvent` | Internal event type and path model. |
+| `IFileWatcher` / `InotifyFileWatcher` | Linux filesystem monitoring. |
+| `IMatcher` | Matcher strategy interface. |
+| `ExtensionMatcher` | Case-insensitive file extension matching. |
+| `RegexMatcher` | Regex matching against event paths. |
+| `FileSizeMatcher` | File size comparisons. |
+| `IAction` | Action command interface. |
+| `MoveAction` | Moves files with duplicate and stability options. |
+| `CopyAction` | Copies files with duplicate and stability options. |
+| `ExecuteAction` | Runs shell commands with `{file}` substitution. |
+| `CompressAction` | Runs `gzip` for file compression. |
+| `NotificationAction` | Runs `notify-send` for desktop notifications. |
+| `Rule` | Binds one event type, matcher, and action. |
+| `RuleEngine` | Evaluates events and dispatches matching actions. |
+| `ConfigManager` | Parses `.yml`, `.yaml`, and `.conf` configs. |
+| `ConsoleLogger` / `FileLogger` | Event and rule-result logging. |
 
 ## Project Structure
 
-```
+```text
 WatchFlow/
-├── CMakeLists.txt
-├── README.md
-├── examples/
-│   └── watchflow.conf
-├── docs/
-│   └── INSTRUCTIONS.md
-├── include/watchflow/
-│   ├── core/        FileEvent.hpp
-│   ├── watcher/      IFileWatcher.hpp, InotifyFileWatcher.hpp
-│   ├── matcher/       IMatcher.hpp, RegexMatcher.hpp, FileSizeMatcher.hpp
-│   ├── action/        IAction.hpp, CopyAction.hpp, ExecuteAction.hpp, CompressAction.hpp, NotificationAction.hpp
-│   ├── rule/          Rule.hpp, RuleEngine.hpp
-│   ├── config/        ConfigManager.hpp
-│   └── logging/       ConsoleLogger.hpp
-├── src/                (mirrors include/ + main.cpp)
-└── tests/
-    └── README.md
+|-- CMakeLists.txt
+|-- README.md
+|-- downloads-sort.yml
+|-- downloads-sort.conf
+|-- docs/
+|   `-- INSTRUCTIONS.md
+|-- examples/
+|   `-- watchflow.conf
+|-- include/watchflow/
+|   |-- action/
+|   |-- config/
+|   |-- core/
+|   |-- logging/
+|   |-- matcher/
+|   |-- rule/
+|   `-- watcher/
+|-- src/
+|   |-- action/
+|   |-- config/
+|   |-- core/
+|   |-- logging/
+|   |-- matcher/
+|   |-- rule/
+|   |-- watcher/
+|   `-- main.cpp
+`-- tests/
+    `-- README.md
 ```
 
----
+## Security Notes
 
-## Design Principles
+`EXECUTE` uses `std::system`, so it can run any command available to the user
+running WatchFlow.
 
-### OOP
-- **Encapsulation** — each class owns its data and behavior (e.g. `RegexMatcher` owns its pattern + matching logic)
-- **Abstraction** — Linux specifics hidden behind `IFileWatcher`, matching behind `IMatcher`, actions behind `IAction`
-- **Polymorphism** — `RuleEngine` operates on `IMatcher`/`IAction` without knowing the concrete type
-
-### SOLID
-| Principle | Applied as |
-|---|---|
-| **S**RP | Each class has one job — `InotifyFileWatcher` watches, `ConfigManager` parses, `RuleEngine` evaluates |
-| **O**CP | New matchers/actions can be added without modifying `RuleEngine` |
-| **L**SP | Any `IMatcher`/`IAction` implementation is substitutable wherever the interface is expected |
-| **I**SP | Focused interfaces — `IFileWatcher`, `IMatcher`, `IAction` — instead of one large interface |
-| **D**IP | `RuleEngine` depends on `IMatcher`/`IAction` abstractions, not concrete classes |
-
-### Design Patterns
-- **Strategy** — pluggable matching algorithms (`RegexMatcher`, `FileSizeMatcher`)
-- **Command-style actions** — each action is an independent, executable object
-- **Factory-style creation** — `ConfigManager` maps config tokens (`REGEX`, `COPY`, …) to concrete objects
-- **Observer-style events** — `InotifyFileWatcher` emits `FileEvent`s consumed by `RuleEngine`
-
----
-
-## Security Considerations
-
-The `EXECUTE` action can run **any** shell command available to the user running WatchFlow.
-
-- ❌ Never run untrusted configuration files
-- ⚠️ Be careful with `{file}` substitution when constructing commands
-- ✅ Intended for personal automation, dev environments, and controlled Linux setups
-- 🚫 Not a hardened, multi-user automation service
-
----
+- Only run trusted config files.
+- Quote `{file}` in shell commands when paths may contain spaces.
+- Do not use WatchFlow as a hardened multi-user automation service.
+- Prefer native `move` and `copy` actions over shell commands for file sorting.
 
 ## Current Limitations
 
-This is an MVP. It does **not** yet support:
+- Watches one directory only; no recursive watching yet.
+- Linux only.
+- YAML support is a small supported subset, not a general YAML parser.
+- Actions run synchronously in the watcher callback.
+- No retry queue, persistent job database, daemon installer, GUI, or web UI.
+- No automated test suite yet; current checks are build and manual/integration smoke tests.
 
-- Recursive directory watching
-- YAML/JSON configuration
-- Database storage, web UI, or GUI
-- Authentication
-- Worker pool / concurrent execution
-- Job persistence, retries, or scheduling
-- File locking
-- Sandboxing
-- Cross-platform monitoring (Windows/macOS)
+## Development Check
 
----
+```bash
+cmake --build build
+timeout 2s ./build/watchflow examples/watchflow.conf
+timeout 2s ./build/watchflow downloads-sort.yml
+```
 
-## Roadmap
-
-| Version | Focus |
-|---|---|
-| **v0.2** | Better config format, more matchers/actions |
-| **v0.3** | Recursive watching, better error handling & logging |
-| **v0.4** | Worker thread pool, event queue, concurrent actions |
-| **v0.5** | Retry mechanism, action status, timeouts, job management |
-| **v1.0** | Production CLI, config validation, persistent logs, test suite, daemon mode |
-
----
-
-## Learning Goals
-
-- **Linux:** `inotify`, filesystem events, processes, shell commands
-- **C++:** C++20, RAII, smart pointers, STL, `<filesystem>`, `<regex>`, interfaces, polymorphism, exceptions
-- **OOP:** Encapsulation, Abstraction, Inheritance, Polymorphism, Composition
-- **SOLID:** SRP, OCP, LSP, ISP, DIP
-- **Design Patterns:** Strategy, Command-style, Factory-style, Observer-style
-
----
+The timeout commands are smoke checks: they verify that config files parse,
+startup works, and signal shutdown does not hang.
 
 ## License
 
-MIT License — see `LICENSE` for details.
+MIT License.

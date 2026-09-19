@@ -9,12 +9,13 @@
 #include <iostream>
 #include <memory>
 #include <optional>
+#include <unistd.h>
 
 namespace {
-watchflow::IFileWatcher* watcher = nullptr;
+volatile std::sig_atomic_t keepRunning = 1;
 
 void handleSignal(int) {
-    if (watcher) watcher->stop();
+    keepRunning = 0;
 }
 }
 
@@ -47,7 +48,6 @@ int main(int argc, char* argv[]) {
             engine.addRule(std::move(rule));
         }
 
-        watcher = &fileWatcher;
         std::signal(SIGINT, handleSignal);
         std::signal(SIGTERM, handleSignal);
 
@@ -74,9 +74,8 @@ int main(int argc, char* argv[]) {
         });
 
         // Keep main thread alive. The watcher owns the event loop.
-        while (true) {
+        while (keepRunning) {
             pause();
-            if (std::cin.eof()) break;
         }
 
         fileWatcher.stop();

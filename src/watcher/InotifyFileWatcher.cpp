@@ -3,8 +3,10 @@
 #include <sys/inotify.h>
 #include <unistd.h>
 #include <cerrno>
+#include <chrono>
 #include <cstring>
 #include <stdexcept>
+#include <thread>
 #include <vector>
 
 namespace watchflow {
@@ -28,7 +30,7 @@ void InotifyFileWatcher::stop() {
 }
 
 void InotifyFileWatcher::run(EventCallback callback) {
-    const int fd = inotify_init1(0);
+    const int fd = inotify_init1(IN_NONBLOCK);
     if (fd < 0) {
         running_ = false;
         throw std::runtime_error(std::string("inotify_init1 failed: ") + std::strerror(errno));
@@ -51,6 +53,10 @@ void InotifyFileWatcher::run(EventCallback callback) {
         const ssize_t length = read(fd, buffer.data(), buffer.size());
         if (length <= 0) {
             if (errno == EINTR) continue;
+            if (errno == EAGAIN || errno == EWOULDBLOCK) {
+                std::this_thread::sleep_for(std::chrono::milliseconds(100));
+                continue;
+            }
             break;
         }
 
