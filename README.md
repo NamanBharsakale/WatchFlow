@@ -14,6 +14,7 @@ Linux Filesystem → inotify → FileWatcher → FileEvent → RuleEngine → Ma
 
 ## Table of Contents
 
+- [Problem Statement](#problem-statement)
 - [Overview](#overview)
 - [Features](#features)
 - [Technology Stack](#technology-stack)
@@ -26,10 +27,14 @@ Linux Filesystem → inotify → FileWatcher → FileEvent → RuleEngine → Ma
 - [Project Structure](#project-structure)
 - [Design Principles](#design-principles)
 - [Security Considerations](#security-considerations)
-- [Current Limitations](#current-limitations)
-- [Roadmap](#roadmap)
 - [Learning Goals](#learning-goals)
 - [License](#license)
+
+---
+
+## Problem Statement
+
+Teams and individuals often download, create, or receive files into a shared folder and then spend time manually sorting them, copying them into destination folders, launching follow-up commands, compressing archives, or sending notifications. WatchFlow automates that response loop: it watches a folder, matches files against rules, and immediately applies the right action.
 
 ---
 
@@ -55,6 +60,9 @@ output/pdfs/report.pdf
 
 ### 🔎 Filesystem Monitoring
 Watches a directory for **creation**, **modification**, **deletion**, and **move** events using Linux's `inotify` — no polling.
+
+### 📥 Automatic File Storage
+When a new file appears in the watched directory, WatchFlow can automatically store it in a target folder through a `COPY` rule. This is the feature behind the "download it and it gets stored automatically" behavior: the file lands in the watch folder, WatchFlow detects it, and the configured action moves or copies it to the destination folder without manual handling.
 
 ### 🧩 Regex Matcher
 Match files by pattern:
@@ -153,7 +161,7 @@ Example:
 
 ```
 ====================================
-          WatchFlow MVP
+          WatchFlow
 ====================================
 
 Watching: ./sandbox
@@ -257,6 +265,10 @@ Linux Kernel → inotify → InotifyFileWatcher → FileEvent
 ```
 
 ### Runtime flow — `touch sandbox/report.pdf`
+
+### Runtime outcome — file lands in a destination folder
+
+If the watched folder receives a file such as `report.pdf`, the matching `COPY` rule stores it in the configured destination directory, for example `output/pdfs/report.pdf`.
 
 1. User creates `report.pdf`
 2. Linux filesystem changes

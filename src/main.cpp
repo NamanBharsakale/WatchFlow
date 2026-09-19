@@ -1,5 +1,6 @@
 #include "watchflow/config/ConfigManager.hpp"
 #include "watchflow/logging/ConsoleLogger.hpp"
+#include "watchflow/rule/RuleEngine.hpp"
 #include "watchflow/watcher/InotifyFileWatcher.hpp"
 
 #include <csignal>

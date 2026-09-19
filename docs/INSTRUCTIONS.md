@@ -4,7 +4,7 @@
 
 Build a small Linux-only C++20 event-driven automation engine.
 
-The MVP flow is:
+The core flow is:
 
 ```text
 Filesystem
@@ -23,7 +23,7 @@ RuleEngine
    +--> Action
 ```
 
-## 2. MVP feature boundary
+## 2. Core feature scope
 
 ### Watcher
 - Watch one directory.
@@ -45,7 +45,7 @@ Only:
 ### Configuration
 Use the simple `.conf` format.
 
-Do NOT add YAML/JSON yet.
+The configuration format is the simple `.conf` file used by the project.
 
 ## 3. OOP/SOLID rules
 
@@ -92,10 +92,10 @@ IAction
 ### Factory
 `ConfigManager` creates concrete matcher/action objects from configuration.
 
-This is intentionally kept as simple factory logic for MVP. A dedicated `MatcherFactory` / `ActionFactory` can be extracted later if the number of types grows.
+This is intentionally kept as simple factory logic. A dedicated `MatcherFactory` / `ActionFactory` can be extracted later if the number of types grows.
 
 ### Observer-style event flow
-The watcher publishes each `FileEvent` through a callback. The callback sends the event to the logger and rule engine. We avoid a full observer hierarchy in MVP to keep the code small.
+The watcher publishes each `FileEvent` through a callback. The callback sends the event to the logger and rule engine. We avoid a full observer hierarchy to keep the code small.
 
 ## 5. Build order
 
@@ -188,33 +188,6 @@ large.bin.gz
 
 Create a PDF and confirm the Linux desktop notification appears.
 
-## 7. Current limitations
+## 7. Project notes
 
-These are intentional:
-
-- one watched directory
-- no recursive watching
-- no asynchronous worker queue
-- no retries
-- no persistent job history
-- no daemon
-- no CLI subcommands
-- no YAML
-- no database
-
-Do not solve future problems before the MVP works.
-
-## 8. Next version after MVP
-
-Only after the MVP is stable:
-
-1. Extract `ActionFactory`.
-2. Extract `MatcherFactory`.
-3. Add recursive watching.
-4. Add event queue.
-5. Add worker pool.
-6. Add job state.
-7. Add retry/timeout.
-8. Add proper tests.
-9. Add YAML/JSON config.
-10. Add `start/status/stop/validate` CLI commands.
+WatchFlow is a file automation project that watches a directory, evaluates each event against rules, and stores or processes matching files automatically. The same config can be used to copy downloads into a destination folder, run follow-up commands, compress files, or send notifications.
