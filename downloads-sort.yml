@@ -1,0 +1,44 @@
+watch: /home/naman/Downloads
+log_file: /home/naman/Music/WatchFlow/logs/downloads.log
+duplicates: rename
+
+wait_until_complete:
+  enabled: true
+  stable_for_ms: 1500
+  timeout_ms: 60000
+
+rules:
+  - name: Images
+    events: [created, moved]
+    matcher: extension
+    extensions: [jpg, jpeg, png, gif, webp, bmp, svg]
+    action: move
+    destination: /home/naman/Pictures
+
+  - name: PDFs
+    events: [created, moved]
+    matcher: extension
+    extensions: [pdf]
+    action: move
+    destination: /home/naman/Documents/PDF
+
+  - name: Microsoft Office
+    events: [created, moved]
+    matcher: extension
+    extensions: [doc, docx, xls, xlsx, ppt, pptx]
+    action: move
+    destination: /home/naman/Documents/MSFT
+
+  - name: Audio
+    events: [created, moved]
+    matcher: extension
+    extensions: [mp3]
+    action: move
+    destination: /home/naman/Music
+
+  - name: Video
+    events: [created, moved]
+    matcher: extension
+    extensions: [mp4]
+    action: move
+    destination: /home/naman/Videos

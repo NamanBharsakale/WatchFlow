@@ -12,6 +12,8 @@ add_executable(watchflow
     src/matcher/RegexMatcher.cpp
     src/matcher/FileSizeMatcher.cpp
     src/action/CopyAction.cpp
+    src/action/FileActionUtils.cpp
+    src/action/MoveAction.cpp
     src/action/ExecuteAction.cpp
     src/action/CompressAction.cpp
     src/action/NotificationAction.cpp
@@ -19,6 +21,8 @@ add_executable(watchflow
     src/rule/RuleEngine.cpp
     src/config/ConfigManager.cpp
     src/logging/ConsoleLogger.cpp
+    src/logging/FileLogger.cpp
+    src/matcher/ExtensionMatcher.cpp
 )
 
 target_include_directories(watchflow PRIVATE include)

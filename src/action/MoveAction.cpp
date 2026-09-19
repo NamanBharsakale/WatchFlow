@@ -1,15 +1,16 @@
-#include "watchflow/action/CopyAction.hpp"
+#include "watchflow/action/MoveAction.hpp"
 #include "watchflow/action/FileActionUtils.hpp"
+
 #include <filesystem>
 
 namespace watchflow {
 
-CopyAction::CopyAction(std::filesystem::path destination,
+MoveAction::MoveAction(std::filesystem::path destination,
                        ActionOptions options)
     : destination_(std::move(destination)),
       options_(options) {}
 
-bool CopyAction::execute(const FileEvent& event) {
+bool MoveAction::execute(const FileEvent& event) {
     if (!std::filesystem::exists(event.path)) return false;
     if (!waitUntilFileStable(event.path, options_.fileStability)) return false;
 
@@ -23,12 +24,19 @@ bool CopyAction::execute(const FileEvent& event) {
 
     if (target.empty()) return false;
 
+    std::filesystem::rename(event.path, target, ec);
+    if (!ec) return true;
+    if (std::filesystem::exists(target)) return true;
+
+    ec.clear();
     std::filesystem::copy_file(
         event.path,
         target,
         std::filesystem::copy_options::overwrite_existing,
-        ec
-    );
+        ec);
+    if (ec) return false;
+
+    std::filesystem::remove(event.path, ec);
     return !ec;
 }
 

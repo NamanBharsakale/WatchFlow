@@ -6,9 +6,9 @@
 
 namespace watchflow {
 
-class CopyAction final : public IAction {
+class MoveAction final : public IAction {
 public:
-    explicit CopyAction(std::filesystem::path destination,
+    explicit MoveAction(std::filesystem::path destination,
                         ActionOptions options = {});
     bool execute(const FileEvent& event) override;
 

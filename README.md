@@ -201,12 +201,62 @@ ls output/pdfs
 
 ## Configuration
 
-WatchFlow uses a simple pipe-delimited configuration format.
+WatchFlow supports YAML configuration for readable automation rules. The older
+pipe-delimited `.conf` format is still supported for existing examples.
+
+```yaml
+watch: /home/naman/Downloads
+log_file: /home/naman/Music/WatchFlow/logs/downloads.log
+duplicates: rename
+
+wait_until_complete:
+  enabled: true
+  stable_for_ms: 1500
+  timeout_ms: 60000
+
+rules:
+  - name: Images
+    events: [created, moved]
+    matcher: extension
+    extensions: [jpg, jpeg, png, gif, webp, bmp, svg]
+    action: move
+    destination: /home/naman/Pictures
+
+  - name: PDFs
+    events: [created, moved]
+    matcher: extension
+    extensions: [pdf]
+    action: move
+    destination: /home/naman/Documents/PDF
+```
+
+Run a YAML config the same way:
+
+```bash
+./build/watchflow downloads-sort.yml
+```
+
+### YAML fields
+
+| Field | Meaning |
+|---|---|
+| `watch` | Directory to monitor |
+| `log_file` | Optional file that receives event and rule-result logs |
+| `duplicates` | `overwrite`, `rename`, or `skip` |
+| `wait_until_complete.enabled` | Wait for file size to stop changing before copy/move |
+| `wait_until_complete.stable_for_ms` | How long the size must remain unchanged |
+| `wait_until_complete.timeout_ms` | Maximum wait time before failing the action |
+| `rules[].events` | One or more events: `created`, `modified`, `deleted`, `moved` |
+| `rules[].matcher` | `extension`, `regex`, `size_gt`, `size_lt`, or `size_eq` |
+| `rules[].action` | `move`, `copy`, `execute`, `compress`, or `notify` |
+
+### Legacy `.conf` format
 
 ```
 WATCH|./sandbox
 
 RULE|Copy PDFs|CREATED|REGEX|.*\.pdf|COPY|./output/pdfs
+RULE|Move PDFs|MOVED|EXT|pdf|MOVE|./output/pdfs
 RULE|Compress Large Files|MODIFIED|SIZE_GT|1048576|COMPRESS|.gz
 RULE|Compile C++|MODIFIED|REGEX|.*\.cpp|EXECUTE|g++ "{file}" -std=c++20 -o "{file}.out"
 RULE|Notify PDFs|CREATED|REGEX|.*\.pdf|NOTIFY|New PDF detected: {file}
@@ -230,6 +280,7 @@ RULE|<name>|<event>|<matcher>|<pattern>|<action>|<action-argument>
 
 | Matcher | Syntax |
 |---|---|
+| Extension | `EXT\|pdf,jpg,png` |
 | Regex | `REGEX\|<pattern>` |
 | Size greater than | `SIZE_GT\|<bytes>` |
 | Size less than | `SIZE_LT\|<bytes>` |
@@ -239,6 +290,7 @@ RULE|<name>|<event>|<matcher>|<pattern>|<action>|<action-argument>
 
 | Action | Syntax |
 |---|---|
+| Move | `MOVE\|<destination-directory>` |
 | Copy | `COPY\|<destination-directory>` |
 | Execute | `EXECUTE\|<command with {file}>` |
 | Compress | `COMPRESS\|<extension>` |
