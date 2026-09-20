@@ -1,25 +1,42 @@
 #include "watchflow/action/ExecuteAction.hpp"
 #include <cstdlib>
 
-namespace watchflow {
+using namespace std;
+using namespace watchflow;
 
-namespace {
-std::string replaceAll(std::string text, const std::string& from, const std::string& to) {
-    std::size_t pos = 0;
-    while ((pos = text.find(from, pos)) != std::string::npos) {
-        text.replace(pos, from.size(), to);
-        pos += to.size();
+
+// Replace {file} with actual file path
+string replaceFile(string command, string file)
+{
+    size_t pos = command.find("{file}");
+
+    if (pos != string::npos)
+    {
+        command.replace(pos, 6, file);
     }
-    return text;
-}
+
+    return command;
 }
 
-ExecuteAction::ExecuteAction(std::string command)
-    : command_(std::move(command)) {}
 
-bool ExecuteAction::execute(const FileEvent& event) {
-    const auto command = replaceAll(command_, "{file}", event.path.string());
-    return std::system(command.c_str()) == 0;
+// Constructor
+ExecuteAction::ExecuteAction(string command)
+{
+    command_ = command;
+}
+
+
+// Execute command
+bool ExecuteAction::execute(const FileEvent& event)
+{
+    string command = replaceFile(
+        command_,
+        event.path.string()
+    );
+
+    int result = system(command.c_str());
+
+    return result == 0;
 }
 
 } // namespace watchflow

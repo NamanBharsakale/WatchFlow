@@ -1,78 +1,86 @@
 #include "watchflow/action/FileActionUtils.hpp"
 
-#include <chrono>
-#include <sstream>
+#include <filesystem>
 #include <thread>
+#include <chrono>
 
-namespace watchflow {
+using namespace std;
+using namespace watchflow;
 
-std::filesystem::path resolveDuplicatePath(
-    const std::filesystem::path& target,
-    DuplicateMode mode) {
-    if (mode == DuplicateMode::Overwrite || !std::filesystem::exists(target)) {
+
+// Find a unique filename if the file already exists
+filesystem::path resolveDuplicatePath(
+    const filesystem::path& target,
+    DuplicateMode mode)
+{
+    // Overwrite → use the same filename
+    if (mode == DuplicateMode::Overwrite)
         return target;
-    }
 
-    if (mode == DuplicateMode::Skip) {
+    // File doesn't exist → use the same filename
+    if (!filesystem::exists(target))
+        return target;
+
+    // Skip → return empty path
+    if (mode == DuplicateMode::Skip)
         return {};
-    }
 
-    const auto parent = target.parent_path();
-    const auto stem = target.stem().string();
-    const auto extension = target.extension().string();
+    // Rename mode
+    string name = target.stem().string();
+    string extension = target.extension().string();
 
-    for (int counter = 1; counter < 10000; ++counter) {
-        std::ostringstream candidateName;
-        candidateName << stem << "-" << counter << extension;
+    for (int i = 1; i < 10000; i++)
+    {
+        filesystem::path newFile =
+            target.parent_path() /
+            (name + "-" + to_string(i) + extension);
 
-        auto candidate = parent / candidateName.str();
-        if (!std::filesystem::exists(candidate)) {
-            return candidate;
-        }
+        if (!filesystem::exists(newFile))
+            return newFile;
     }
 
     return {};
 }
 
+
+// Check whether the file has stopped changing
 bool waitUntilFileStable(
-    const std::filesystem::path& file,
-    const FileStabilityOptions& options) {
-    if (!options.enabled) {
+    const filesystem::path& file,
+    const FileStabilityOptions& options)
+{
+    // Stability checking disabled
+    if (!options.enabled)
         return true;
-    }
 
-    std::error_code ec;
-    if (!std::filesystem::exists(file, ec) || ec) {
+    // File must exist
+    if (!filesystem::exists(file))
         return false;
-    }
 
-    const auto started = std::chrono::steady_clock::now();
-    auto stableSince = std::chrono::steady_clock::now();
-    auto previousSize = std::filesystem::file_size(file, ec);
-    if (ec) {
-        return false;
-    }
+    auto previousSize = filesystem::file_size(file);
 
-    while (std::chrono::steady_clock::now() - started < options.timeout) {
-        std::this_thread::sleep_for(std::chrono::milliseconds(250));
+    auto stableTime = chrono::steady_clock::now();
+    auto startTime = chrono::steady_clock::now();
 
-        const auto currentSize = std::filesystem::file_size(file, ec);
-        if (ec) {
-            return false;
-        }
+    while (chrono::steady_clock::now() - startTime < options.timeout)
+    {
+        // Wait 250 milliseconds
+        this_thread::sleep_for(chrono::milliseconds(250));
 
-        if (currentSize != previousSize) {
+        auto currentSize = filesystem::file_size(file);
+
+        // File size changed
+        if (currentSize != previousSize)
+        {
             previousSize = currentSize;
-            stableSince = std::chrono::steady_clock::now();
+            stableTime = chrono::steady_clock::now();
             continue;
         }
 
-        if (std::chrono::steady_clock::now() - stableSince >= options.stableFor) {
+        // File has remained unchanged long enough
+        if (chrono::steady_clock::now() - stableTime >= options.stableFor)
             return true;
-        }
     }
 
+    // Timeout
     return false;
 }
-
-} // namespace watchflow
