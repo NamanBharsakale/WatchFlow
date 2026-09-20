@@ -3,32 +3,37 @@
 #include <algorithm>
 #include <cctype>
 
-namespace watchflow {
+using namespace std;
+using namespace watchflow;
 
-namespace {
-std::string normalizeExtension(std::string extension) {
-    if (!extension.empty() && extension.front() == '.') {
-        extension.erase(extension.begin());
-    }
+string normalizeExtension(string extension)
+{
+    // Remove '.' from beginning
+    if (!extension.empty() && extension[0] == '.')
+        extension.erase(0, 1);
 
-    std::transform(extension.begin(), extension.end(), extension.begin(),
-                   [](unsigned char value) {
-                       return static_cast<char>(std::tolower(value));
-                   });
+    // Convert to lowercase
+    transform(extension.begin(), extension.end(), extension.begin(),
+        [](unsigned char c) {
+            return tolower(c);
+        });
 
     return extension;
 }
-}
 
-ExtensionMatcher::ExtensionMatcher(std::vector<std::string> extensions) {
-    for (auto& extension : extensions) {
-        extensions_.insert(normalizeExtension(std::move(extension)));
+ExtensionMatcher::ExtensionMatcher(vector<string> extensions)
+{
+    for (string extension : extensions)
+    {
+        extensions_.insert(normalizeExtension(extension));
     }
 }
 
-bool ExtensionMatcher::matches(const FileEvent& event) const {
-    auto extension = event.path.extension().string();
-    return extensions_.contains(normalizeExtension(std::move(extension)));
-}
+bool ExtensionMatcher::matches(const FileEvent& event) const
+{
+    string extension = event.path.extension().string();
 
-} // namespace watchflow
+    return extensions_.contains(
+        normalizeExtension(extension)
+    );
+}

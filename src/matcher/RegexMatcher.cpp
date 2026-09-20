@@ -1,12 +1,16 @@
 #include "watchflow/matcher/RegexMatcher.hpp"
 
-namespace watchflow {
+using namespace std;
+using namespace watchflow;
 
-RegexMatcher::RegexMatcher(std::string pattern)
-    : pattern_(std::move(pattern)) {}
-
-bool RegexMatcher::matches(const FileEvent& event) const {
-    return std::regex_match(event.path.filename().string(), pattern_);
+RegexMatcher::RegexMatcher(string pattern)
+{
+    pattern_ = pattern;
 }
 
-} // namespace watchflow
+bool RegexMatcher::matches(const FileEvent& event) const
+{
+    string filename = event.path.filename().string();
+
+    return regex_match(filename, pattern_);
+}
