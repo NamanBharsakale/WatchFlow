@@ -7,65 +7,87 @@
 #include <csignal>
 #include <filesystem>
 #include <iostream>
-#include <memory>
 #include <optional>
 #include <unistd.h>
 
+using namespace std;
+using namespace watchflow;
 namespace {
-volatile std::sig_atomic_t keepRunning = 1;
+    volatile sig_atomic_t keepRunning = 1;
 
-void handleSignal(int) {
-    keepRunning = 0;
-}
+    void handleSignal(int) {
+        keepRunning = 0;
+    }
 }
 
 int main(int argc, char* argv[]) {
+
+    // Check command-line arguments
     if (argc != 2) {
-        std::cerr << "Usage: watchflow <config-file>\n";
+        cerr << "Usage: watchflow <config-file>\n";
         return 1;
     }
 
     try {
-        watchflow::ConfigManager configManager;
+
+        // 1. Load configuration
+        ConfigManager configManager;
         auto config = configManager.load(argv[1]);
 
-        if (!std::filesystem::is_directory(config.watchDirectory)) {
-            std::cerr << "Watch directory does not exist: "
-                      << config.watchDirectory << "\n";
+        // 2. Check watch directory
+        if (!filesystem::is_directory(config.watchDirectory)) {
+            cerr << "Watch directory does not exist: "
+                 << config.watchDirectory << "\n";
             return 1;
         }
 
-        watchflow::InotifyFileWatcher fileWatcher(config.watchDirectory);
-        watchflow::RuleEngine engine;
-        watchflow::ConsoleLogger logger;
-        std::optional<watchflow::FileLogger> fileLogger;
+        // 3. Create WatchFlow components
+        InotifyFileWatcher fileWatcher(config.watchDirectory);
+        RuleEngine engine;
+        ConsoleLogger logger;
 
+        optional<FileLogger> fileLogger;
+
+        // Create file logger only if configured
         if (!config.logFile.empty()) {
             fileLogger.emplace(config.logFile);
         }
 
+        // 4. Add rules to RuleEngine
         for (auto& rule : config.rules) {
-            engine.addRule(std::move(rule));
+            engine.addRule(move(rule));
         }
 
-        std::signal(SIGINT, handleSignal);
-        std::signal(SIGTERM, handleSignal);
+        // 5. Handle Ctrl+C and termination
+        signal(SIGINT, handleSignal);
+        signal(SIGTERM, handleSignal);
 
-        std::cout << "WatchFlow started\n";
-        std::cout << "Watching: " << config.watchDirectory << "\n";
-        std::cout << "Rules: " << config.rules.size() << "\n";
+        // 6. Display startup information
+        cout << "WatchFlow started\n";
+        cout << "Watching: " << config.watchDirectory << "\n";
+        cout << "Rules: " << config.rules.size() << "\n";
+
         if (!config.logFile.empty()) {
-            std::cout << "Log file: " << config.logFile << "\n";
+            cout << "Log file: " << config.logFile << "\n";
         }
-        std::cout << "Press Ctrl+C to stop.\n\n";
 
-        fileWatcher.start([&](const watchflow::FileEvent& event) {
+        cout << "Press Ctrl+C to stop.\n\n";
+
+        // 7. Start watching files
+        fileWatcher.start([&](const FileEvent& event) {
+
+            // Print event on console
             logger.log(event);
+
+            // Write event to file if enabled
             if (fileLogger) {
                 fileLogger->logEvent(event);
             }
 
-            const auto results = engine.onEvent(event);
+            // Process event using rules
+            auto results = engine.onEvent(event);
+
+            // Log rule results
             if (fileLogger) {
                 for (const auto& [ruleName, success] : results) {
                     fileLogger->logRuleResult(ruleName, success);
@@ -73,14 +95,17 @@ int main(int argc, char* argv[]) {
             }
         });
 
-        // Keep main thread alive. The watcher owns the event loop.
+        // 8. Keep program running
         while (keepRunning) {
             pause();
         }
 
+        // 9. Stop watcher
         fileWatcher.stop();
-    } catch (const std::exception& ex) {
-        std::cerr << "WatchFlow error: " << ex.what() << "\n";
+
+    }
+    catch (const exception& ex) {
+        cerr << "WatchFlow error: " << ex.what() << "\n";
         return 1;
     }
 
