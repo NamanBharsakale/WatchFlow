@@ -5,41 +5,86 @@
 #include <iomanip>
 #include <stdexcept>
 
+using namespace std;
+
 namespace watchflow {
 
-namespace {
-void writeTimestamp(std::ofstream& output) {
-    const auto now = std::chrono::system_clock::to_time_t(
-        std::chrono::system_clock::now());
-    output << "[" << std::put_time(std::localtime(&now), "%F %T") << "] ";
-}
+
+// Write current timestamp
+void writeTimestamp(ofstream& output)
+{
+    auto now = chrono::system_clock::now();
+
+    time_t currentTime =
+        chrono::system_clock::to_time_t(now);
+
+    output << "["
+           << put_time(localtime(&currentTime), "%F %T")
+           << "] ";
 }
 
-FileLogger::FileLogger(std::filesystem::path file) {
-    std::error_code ec;
-    if (!file.parent_path().empty()) {
-        std::filesystem::create_directories(file.parent_path(), ec);
-        if (ec) {
-            throw std::runtime_error("Cannot create log directory: " + file.parent_path().string());
+
+// Constructor
+FileLogger::FileLogger(filesystem::path file)
+{
+    // Create parent directory if needed
+    if (!file.parent_path().empty())
+    {
+        error_code ec;
+
+        filesystem::create_directories(
+            file.parent_path(),
+            ec
+        );
+
+        if (ec)
+        {
+            throw runtime_error(
+                "Cannot create log directory"
+            );
         }
     }
 
-    output_.open(file, std::ios::app);
-    if (!output_) {
-        throw std::runtime_error("Cannot open log file: " + file.string());
+    // Open log file
+    output_.open(file, ios::app);
+
+    if (!output_)
+    {
+        throw runtime_error(
+            "Cannot open log file: " + file.string()
+        );
     }
 }
 
-void FileLogger::logEvent(const FileEvent& event) {
+
+// Log file event
+void FileLogger::logEvent(const FileEvent& event)
+{
     writeTimestamp(output_);
-    output_ << toString(event.type) << " " << event.path << "\n";
+
+    output_ << toString(event.type)
+            << " "
+            << event.path
+            << "\n";
+
     output_.flush();
 }
 
-void FileLogger::logRuleResult(const std::string& ruleName, bool success) {
+
+// Log rule result
+void FileLogger::logRuleResult(
+    const string& ruleName,
+    bool success)
+{
     writeTimestamp(output_);
-    output_ << "RULE " << ruleName << " " << (success ? "SUCCESS" : "FAILED") << "\n";
+
+    output_ << "RULE "
+            << ruleName
+            << " "
+            << (success ? "SUCCESS" : "FAILED")
+            << "\n";
+
     output_.flush();
 }
 
-} // namespace watchflow
+}
