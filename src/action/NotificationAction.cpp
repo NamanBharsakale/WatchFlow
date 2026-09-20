@@ -1,26 +1,49 @@
 #include "watchflow/action/NotificationAction.hpp"
 #include <cstdlib>
 
+using namespace std;
+
 namespace watchflow {
 
-namespace {
-std::string replaceAll(std::string text, const std::string& from, const std::string& to) {
-    std::size_t pos = 0;
-    while ((pos = text.find(from, pos)) != std::string::npos) {
-        text.replace(pos, from.size(), to);
-        pos += to.size();
+
+// Replace {file} with the actual filename
+string replaceFile(string message, string file)
+{
+    size_t pos = message.find("{file}");
+
+    if (pos != string::npos)
+    {
+        message.replace(pos, 6, file);
     }
-    return text;
-}
-}
 
-NotificationAction::NotificationAction(std::string message)
-    : message_(std::move(message)) {}
-
-bool NotificationAction::execute(const FileEvent& event) {
-    const auto message = replaceAll(message_, "{file}", event.path.filename().string());
-    const auto command = "notify-send \"WatchFlow\" \"" + message + "\"";
-    return std::system(command.c_str()) == 0;
+    return message;
 }
 
-} // namespace watchflow
+
+// Constructor
+NotificationAction::NotificationAction(string message)
+{
+    message_ = message;
+}
+
+
+// Show notification
+bool NotificationAction::execute(const FileEvent& event)
+{
+    // Get filename
+    string file = event.path.filename().string();
+
+    // Replace {file}
+    string message = replaceFile(message_, file);
+
+    // Create Linux notification command
+    string command =
+        "notify-send \"WatchFlow\" \"" + message + "\"";
+
+    // Execute command
+    int result = system(command.c_str());
+
+    return result == 0;
+}
+
+}

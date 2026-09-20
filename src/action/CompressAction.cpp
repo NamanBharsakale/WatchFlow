@@ -1,34 +1,48 @@
 #include "watchflow/action/CompressAction.hpp"
 #include <cstdlib>
 #include <filesystem>
-#include <string>
+
+using namespace std;
 
 namespace watchflow {
 
-namespace {
-std::string shellQuote(const std::string& value) {
-    std::string result = "'";
-    for (char c : value) {
-        if (c == '\'') result += "'\\''";
-        else result += c;
-    }
-    result += "'";
-    return result;
-}
+
+// Put single quotes around a file path
+string shellQuote(string value)
+{
+    return "'" + value + "'";
 }
 
-CompressAction::CompressAction(std::string outputSuffix)
-    : outputSuffix_(std::move(outputSuffix)) {}
 
-bool CompressAction::execute(const FileEvent& event) {
-    if (!std::filesystem::exists(event.path)) return false;
-
-    const auto output = event.path.string() + outputSuffix_;
-    const auto command =
-        "gzip -c " + shellQuote(event.path.string()) +
-        " > " + shellQuote(output);
-
-    return std::system(command.c_str()) == 0;
+// Constructor
+CompressAction::CompressAction(string outputSuffix)
+{
+    outputSuffix_ = outputSuffix;
 }
 
-} // namespace watchflow
+
+// Compress the file
+bool CompressAction::execute(const FileEvent& event)
+{
+    // Check if file exists
+    if (!filesystem::exists(event.path))
+        return false;
+
+    // Create output filename
+    string output =
+        event.path.string() + outputSuffix_;
+
+    // Create gzip command
+    string command =
+        "gzip -c " +
+        shellQuote(event.path.string()) +
+        " > " +
+        shellQuote(output);
+
+    // Execute command
+    int result = system(command.c_str());
+
+    return result == 0;
+}
+
+}
