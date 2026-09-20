@@ -1,25 +1,42 @@
 #include "watchflow/rule/RuleEngine.hpp"
-#include <iostream>
+
+using namespace std;
 
 namespace watchflow {
 
 void RuleEngine::addRule(Rule rule) {
-    rules_.push_back(std::move(rule));
+    rules_.push_back(move(rule));
 }
 
-std::vector<std::pair<std::string, bool>> RuleEngine::onEvent(const FileEvent& event) const {
-    std::vector<std::pair<std::string, bool>> results;
+vector<pair<string, bool>> RuleEngine::onEvent(
+    const FileEvent& event
+) const {
+
+    vector<pair<string, bool>> results;
 
     for (const auto& rule : rules_) {
-        if (!rule.matches(event)) continue;
 
-        std::cout << "[RULE] " << rule.name() << "\n";
-        const bool success = rule.execute(event);
-        std::cout << (success ? "[SUCCESS]\n" : "[FAILED]\n");
-        results.emplace_back(rule.name(), success);
+        // Check if rule matches the event
+        if (!rule.matches(event)) {
+            continue;
+        }
+
+        cout << "[RULE] " << rule.name() << "\n";
+
+        // Execute the rule
+        bool success = rule.execute(event);
+
+        if (success) {
+            cout << "[SUCCESS]\n";
+        } else {
+            cout << "[FAILED]\n";
+        }
+
+        // Store result
+        results.push_back({rule.name(), success});
     }
 
     return results;
 }
 
-} // namespace watchflow
+}
